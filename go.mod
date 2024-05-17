@@ -3,7 +3,6 @@ module github.com/EmirShimshir/marketplace-repository
 go 1.22.2
 
 require (
-	github.com/EmirShimshir/marketplace-domain v0.0.0-20240517151020-6fd8bd582f8d
 	github.com/golang-migrate/migrate v3.5.4+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/guregu/null v4.0.0+incompatible
@@ -19,6 +18,7 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
+	github.com/EmirShimshir/marketplace-core v0.0.0-20240517195449-6971be551840 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.12.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

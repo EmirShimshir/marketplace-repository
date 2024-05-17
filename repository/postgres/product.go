@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"github.com/EmirShimshir/marketplace-domain/domain"
+	"github.com/EmirShimshir/marketplace-core/domain"
 	"github.com/EmirShimshir/marketplace-repository/repository/postgres/entity"
 	"github.com/jackc/pgconn"
 	"github.com/jmoiron/sqlx"

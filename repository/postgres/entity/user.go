@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"github.com/EmirShimshir/marketplace-domain/domain"
+	"github.com/EmirShimshir/marketplace-core/domain"
 	"github.com/google/uuid"
 	"github.com/guregu/null"
 )

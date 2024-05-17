@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"github.com/EmirShimshir/marketplace-domain/domain"
+	"github.com/EmirShimshir/marketplace-core/domain"
 	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
 	"github.com/guregu/null"
 	"github.com/stretchr/testify/require"
