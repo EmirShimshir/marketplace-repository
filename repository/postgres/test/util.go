@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/EmirShimshir/marketplace-repository/repository/pkg/postgres"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
@@ -17,9 +16,17 @@ import (
 	"time"
 )
 
+type Config struct {
+	Host     string
+	Port     string
+	Database string
+	User     string
+	Password string
+}
+
 var (
-	postgresConfig = postgres.Config{
-		Database: "gigamarket",
+	postgresConfig = Config{
+		Database: "marketplace",
 		User:     "postgres",
 		Password: "password",
 	}
