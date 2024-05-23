@@ -1,11 +1,13 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
 	"github.com/guregu/null"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 )
 
@@ -54,9 +56,21 @@ var updatedUser = domain.User{
 	Role:     domain.UserCustomer,
 }
 
+func InitUsersMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, user := range users {
+		var mgUser = entity.NewMgUser(user)
+		_, err := db.Collection(mongodb.UserCollection).InsertOne(ctx, mgUser)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestUserRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,21 +87,18 @@ func TestUserRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitUsersMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test get users", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewUserRepo(db)
+		repo := mongodb.NewUserRepo(db)
 		found, err := repo.Get(ctx, 2, 0)
 		if err != nil {
 			t.Errorf("failed to get users: %v", err)
@@ -99,20 +110,7 @@ func TestUserRepository(t *testing.T) {
 	})
 
 	t.Run("test find user by id", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewUserRepo(db)
+		repo := mongodb.NewUserRepo(db)
 		user, err := repo.GetByID(ctx, users[0].ID)
 		if err != nil {
 			t.Errorf("failed to find user with id: %v", err)
@@ -121,65 +119,27 @@ func TestUserRepository(t *testing.T) {
 	})
 
 	t.Run("test create user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewUserRepo(db)
+		repo := mongodb.NewUserRepo(db)
 		user, err := repo.Create(ctx, createdUser)
 		if err != nil {
 			t.Errorf("failed to create user: %v", err)
 		}
+
 		require.Equal(t, user, createdUser)
 	})
 
 	t.Run("test update user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewUserRepo(db)
+		repo := mongodb.NewUserRepo(db)
 		user, err := repo.Update(ctx, updatedUser)
 		if err != nil {
-			t.Errorf("failed to create user: %v", err)
+			t.Errorf("failed to update user: %v", err)
 		}
 		require.Equal(t, user, updatedUser)
 	})
 
 	t.Run("test delete user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewUserRepo(db)
-		err = repo.Delete(ctx, users[0].ID)
+		repo := mongodb.NewUserRepo(db)
+		err = repo.Delete(ctx, users[0].CartID)
 		if err != nil {
 			t.Errorf("failed to delete user: %v", err)
 		}
