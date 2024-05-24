@@ -1,0 +1,135 @@
+package mongodb
+
+import (
+	"context"
+	"github.com/EmirShimshir/marketplace-core/domain"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
+	"testing"
+)
+
+var shopItems = []domain.ShopItem{
+	domain.ShopItem{
+		ID:        domain.ID("30e18bc1-4354-4937-9a3b-03cf0b702ac1"),
+		ShopID:    domain.ID("30e18bc1-4354-4937-9a3b-03cf0b7027b1"),
+		ProductID: domain.ID("30e18bc1-4354-4937-9a3b-03cf0b7027a1"),
+		Quantity:  5,
+	},
+}
+
+var shops = []domain.Shop{
+	domain.Shop{
+		ID:          domain.ID("30e18bc1-4354-4937-9a3b-03cf0b7027b1"),
+		SellerID:    domain.ID("30e18bc1-4354-4937-9a3b-03cf0b7027cb"),
+		Name:        "Apple Store",
+		Description: "found 1998",
+		Requisites:  "Alabama",
+		Email:       "Apple@mail.ru",
+		Items:       shopItems,
+	},
+}
+
+func InitShopsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, shop := range shops {
+		var mgShop = entity.NewMgShop(shop)
+		_, err := db.Collection(mongodb.ShopCollection).InsertOne(ctx, mgShop)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func InitShopItemsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, shopItem := range shopItems {
+		var mgShopItem = entity.NewMgShopItem(shopItem)
+		_, err := db.Collection(mongodb.ShopProductCollection).InsertOne(ctx, mgShopItem)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func TestShopRepository(t *testing.T) {
+	ctx := context.Background()
+	container, err := newMongoContainer(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up the container after the test is complete
+	t.Cleanup(func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
+	})
+
+	url, err := container.ConnectionString(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitUsersMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitShopsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitShopItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test GetShops", func(t *testing.T) {
+		repo := mongodb.NewShopRepo(db)
+		found, err := repo.GetShops(ctx, 2, 0)
+		if err != nil {
+			t.Errorf("failed to GetShops: %v", err)
+		}
+
+		require.Equal(t, len(shops), len(found))
+		for i := range shops {
+			require.Equal(t, shops[0], found[i])
+		}
+	})
+
+	t.Run("test GetShopByID", func(t *testing.T) {
+		repo := mongodb.NewShopRepo(db)
+		found, err := repo.GetShopByID(ctx, shops[0].ID)
+		if err != nil {
+			t.Errorf("failed to GetShopByID: %v", err)
+		}
+
+		require.Equal(t, shops[0], found)
+	})
+
+	t.Run("test GetShopBySellerID", func(t *testing.T) {
+		repo := mongodb.NewShopRepo(db)
+		found, err := repo.GetShopBySellerID(ctx, shops[0].SellerID)
+		if err != nil {
+			t.Errorf("failed to GetShopByID: %v", err)
+		}
+
+		require.Equal(t, []domain.Shop{shops[0]}, found)
+	})
+}
