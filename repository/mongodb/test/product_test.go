@@ -1,10 +1,13 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
+
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 )
 
@@ -45,9 +48,21 @@ var updatedProduct = domain.Product{
 	PhotoUrl:    "photo/1.png",
 }
 
+func InitProductsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, product := range products {
+		var mgProduct = entity.NewMgProduct(product)
+		_, err := db.Collection(mongodb.ProductCollection).InsertOne(ctx, mgProduct)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestProductRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,21 +79,18 @@ func TestProductRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitProductsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test get products", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewProductRepo(db)
+		repo := mongodb.NewProductRepo(db)
 		found, err := repo.Get(ctx, 2, 0)
 		if err != nil {
 			t.Errorf("failed to get products: %v", err)
@@ -90,20 +102,7 @@ func TestProductRepository(t *testing.T) {
 	})
 
 	t.Run("test get product by id", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewProductRepo(db)
+		repo := mongodb.NewProductRepo(db)
 		product, err := repo.GetByID(ctx, products[0].ID)
 		if err != nil {
 			t.Errorf("failed to get product with id: %v", err)
@@ -112,20 +111,7 @@ func TestProductRepository(t *testing.T) {
 	})
 
 	t.Run("test create product", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewProductRepo(db)
+		repo := mongodb.NewProductRepo(db)
 		product, err := repo.Create(ctx, createdProduct)
 		if err != nil {
 			t.Errorf("failed to create product: %v", err)
@@ -133,21 +119,8 @@ func TestProductRepository(t *testing.T) {
 		require.Equal(t, product, createdProduct)
 	})
 
-	t.Run("test update user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewProductRepo(db)
+	t.Run("test update product", func(t *testing.T) {
+		repo := mongodb.NewProductRepo(db)
 		product, err := repo.Update(ctx, updatedProduct)
 		if err != nil {
 			t.Errorf("failed to create product: %v", err)
@@ -155,21 +128,8 @@ func TestProductRepository(t *testing.T) {
 		require.Equal(t, product, updatedProduct)
 	})
 
-	t.Run("test delete user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewProductRepo(db)
+	t.Run("test delete product", func(t *testing.T) {
+		repo := mongodb.NewProductRepo(db)
 		err = repo.Delete(ctx, products[0].ID)
 		if err != nil {
 			t.Errorf("failed to delete product: %v", err)

@@ -1,10 +1,12 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 )
 
@@ -68,9 +70,33 @@ var clearedCart = domain.Cart{
 	Items: []domain.CartItem{},
 }
 
+func InitCartsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, cart := range carts {
+		var mgCart = entity.NewMgCart(cart)
+		_, err := db.Collection(mongodb.CartCollection).InsertOne(ctx, mgCart)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func InitCartItemsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, cartItem := range cartItems {
+		var mgCartItem = entity.NewMgCartItem(cartItem)
+		_, err := db.Collection(mongodb.CartProductCollection).InsertOne(ctx, mgCartItem)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestCartRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,21 +113,26 @@ func TestCartRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitUsersMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test get product 0", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		found, err := repo.GetCartByID(ctx, carts[0].ID)
 		if err != nil {
 			t.Errorf("failed to get cart: %v", err)
@@ -114,20 +145,7 @@ func TestCartRepository(t *testing.T) {
 	})
 
 	t.Run("test get product 1", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		found, err := repo.GetCartByID(ctx, carts[1].ID)
 		if err != nil {
 			t.Errorf("failed to get cart: %v", err)
@@ -140,20 +158,7 @@ func TestCartRepository(t *testing.T) {
 	})
 
 	t.Run("test update cart", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		cart, err := repo.UpdateCart(ctx, updatedCart)
 		if err != nil {
 			t.Errorf("failed to create cart: %v", err)
@@ -162,20 +167,7 @@ func TestCartRepository(t *testing.T) {
 	})
 
 	t.Run("test clear cart", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		err = repo.ClearCart(ctx, carts[0].ID)
 		if err != nil {
 			t.Errorf("failed to delete cart: %v", err)
@@ -187,20 +179,7 @@ func TestCartRepository(t *testing.T) {
 		require.Equal(t, found, clearedCart)
 	})
 	t.Run("test CreateCartItem", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		found, err := repo.CreateCartItem(ctx, createdCartItem)
 		if err != nil {
 			t.Errorf("failed to CreateCartItem: %v", err)
@@ -209,20 +188,7 @@ func TestCartRepository(t *testing.T) {
 		require.Equal(t, createdCartItem, found)
 	})
 	t.Run("test UpdateCartItem", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 
 		found, err := repo.UpdateCartItem(ctx, updatedCartItem)
 		if err != nil {
@@ -232,23 +198,11 @@ func TestCartRepository(t *testing.T) {
 		require.Equal(t, updatedCartItem, found)
 	})
 	t.Run("test DeleteCartItem", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewCartRepo(db)
+		repo := mongodb.NewCartRepo(db)
 		err = repo.DeleteCartItem(ctx, cartItems[0].ID)
 		if err != nil {
 			t.Errorf("failed to DeleteCartItem: %v", err)
 		}
 	})
 }
+

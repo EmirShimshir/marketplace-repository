@@ -1,10 +1,12 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 )
 
@@ -29,9 +31,33 @@ var shops = []domain.Shop{
 	},
 }
 
+func InitShopsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, shop := range shops {
+		var mgShop = entity.NewMgShop(shop)
+		_, err := db.Collection(mongodb.ShopCollection).InsertOne(ctx, mgShop)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func InitShopItemsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, shopItem := range shopItems {
+		var mgShopItem = entity.NewMgShopItem(shopItem)
+		_, err := db.Collection(mongodb.ShopProductCollection).InsertOne(ctx, mgShopItem)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestShopRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,21 +74,34 @@ func TestShopRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitUsersMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitCartItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitShopsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitShopItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test GetShops", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewShopRepo(db)
+		repo := mongodb.NewShopRepo(db)
 		found, err := repo.GetShops(ctx, 2, 0)
 		if err != nil {
 			t.Errorf("failed to GetShops: %v", err)
@@ -75,20 +114,7 @@ func TestShopRepository(t *testing.T) {
 	})
 
 	t.Run("test GetShopByID", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewShopRepo(db)
+		repo := mongodb.NewShopRepo(db)
 		found, err := repo.GetShopByID(ctx, shops[0].ID)
 		if err != nil {
 			t.Errorf("failed to GetShopByID: %v", err)
@@ -98,20 +124,7 @@ func TestShopRepository(t *testing.T) {
 	})
 
 	t.Run("test GetShopBySellerID", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewShopRepo(db)
+		repo := mongodb.NewShopRepo(db)
 		found, err := repo.GetShopBySellerID(ctx, shops[0].SellerID)
 		if err != nil {
 			t.Errorf("failed to GetShopByID: %v", err)

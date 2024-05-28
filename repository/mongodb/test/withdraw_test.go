@@ -1,10 +1,12 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 )
 
@@ -34,9 +36,21 @@ var updatedWithdraw = domain.Withdraw{
 	Status:  domain.WithdrawStatusDone,
 }
 
+func InitWithdrawsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, withdraw := range withdraws {
+		var mgWithdraw = entity.NewMgWithdraw(withdraw)
+		_, err := db.Collection(mongodb.WithdrawCollection).InsertOne(ctx, mgWithdraw)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestWithdrawRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,21 +67,18 @@ func TestWithdrawRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitWithdrawsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test Get", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		found, err := repo.Get(ctx, 2, 0)
 		if err != nil {
 			t.Errorf("failed get: %v", err)
@@ -79,20 +90,7 @@ func TestWithdrawRepository(t *testing.T) {
 	})
 
 	t.Run("test GetByID", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		found, err := repo.GetByID(ctx, withdraws[0].ID)
 		if err != nil {
 			t.Errorf("failed get with id: %v", err)
@@ -101,20 +99,7 @@ func TestWithdrawRepository(t *testing.T) {
 	})
 
 	t.Run("test GetByShopID", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		found, err := repo.GetByShopID(ctx, withdraws[0].ShopID)
 		if err != nil {
 			t.Errorf("failed get with shop id: %v", err)
@@ -126,20 +111,7 @@ func TestWithdrawRepository(t *testing.T) {
 	})
 
 	t.Run("test create", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		withdraw, err := repo.Create(ctx, createdWithdraw)
 		if err != nil {
 			t.Errorf("failed to create: %v", err)
@@ -148,20 +120,7 @@ func TestWithdrawRepository(t *testing.T) {
 	})
 
 	t.Run("test update", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		withdraw, err := repo.Update(ctx, updatedWithdraw)
 		if err != nil {
 			t.Errorf("failed to update: %v", err)
@@ -170,20 +129,7 @@ func TestWithdrawRepository(t *testing.T) {
 	})
 
 	t.Run("test delete user", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewWithdrawRepo(db)
+		repo := mongodb.NewWithdrawRepo(db)
 		err = repo.Delete(ctx, withdraws[0].ID)
 		if err != nil {
 			t.Errorf("failed to delete withdraw: %v", err)

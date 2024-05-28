@@ -1,10 +1,12 @@
-package postgres
+package mongodb
 
 import (
 	"context"
 	"github.com/EmirShimshir/marketplace-core/domain"
-	repository "github.com/EmirShimshir/marketplace-repository/repository/postgres"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb"
+	"github.com/EmirShimshir/marketplace-repository/repository/mongodb/entity"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"testing"
 	"time"
 )
@@ -69,9 +71,45 @@ var createdOrderCustomers = []domain.OrderCustomer{
 	},
 }
 
+func InitOrderCustomersMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, orderCustomer := range orderCustomers {
+		var mgOrderCustomer = entity.NewMgOrderCustomer(orderCustomer)
+		_, err := db.Collection(mongodb.OrderCustomerCollection).InsertOne(ctx, mgOrderCustomer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func InitOrderShopsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, orderShop := range orderShops {
+		var mgOrderShop = entity.NewMgOrderShop(orderShop)
+		_, err := db.Collection(mongodb.OrderShopCollection).InsertOne(ctx, mgOrderShop)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func InitOrderShopItemsMongoDB(ctx context.Context, db *mongo.Database) error {
+	for _, orderShopItem := range orderShopItems {
+		var mgOrderShopItem = entity.NewMgOrderShopItem(orderShopItem)
+		_, err := db.Collection(mongodb.OrderShopProductCollection).InsertOne(ctx, mgOrderShopItem)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func TestOrderRepository(t *testing.T) {
 	ctx := context.Background()
-	container, err := newPostgresContainer(ctx)
+	container, err := newMongoContainer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,21 +126,26 @@ func TestOrderRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	db, err := newMongoDB(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = InitOrderCustomersMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitOrderShopsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitOrderShopItemsMongoDB(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("test GetOrderCustomerByID", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewOrderRepo(db)
+		repo := mongodb.NewOrderRepo(db)
 		found, err := repo.GetOrderCustomerByID(ctx, orderCustomers[0].ID)
 		if err != nil {
 			t.Errorf("failed to GetOrderCustomerByID: %v", err)
@@ -111,20 +154,7 @@ func TestOrderRepository(t *testing.T) {
 		require.Equal(t, orderCustomers[0], found)
 	})
 	t.Run("test CreateOrderCustomer", func(t *testing.T) {
-		t.Cleanup(func() {
-			err = container.Restore(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-
-		db, err := newPostgresDB(url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
-
-		repo := repository.NewOrderRepo(db)
+		repo := mongodb.NewOrderRepo(db)
 		found, err := repo.CreateOrderCustomer(ctx, createdOrderCustomers[0])
 		if err != nil {
 			t.Errorf("failed to CreateOrderCustomer: %v", err)
